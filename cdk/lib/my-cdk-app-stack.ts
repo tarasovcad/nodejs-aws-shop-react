@@ -1,10 +1,10 @@
 import * as cdk from 'aws-cdk-lib';
 import { Bucket, BlockPublicAccess } from 'aws-cdk-lib/aws-s3';
 import { BucketDeployment, Source } from 'aws-cdk-lib/aws-s3-deployment';
-import { Distribution, ViewerProtocolPolicy } from 'aws-cdk-lib/aws-cloudfront';
-import { S3Origin } from 'aws-cdk-lib/aws-cloudfront-origins';
-
 import { Construct } from 'constructs';
+import * as cloudfront from 'aws-cdk-lib/aws-cloudfront';
+import * as iam from 'aws-cdk-lib/aws-iam';
+import * as origins from 'aws-cdk-lib/aws-cloudfront-origins';
 export class MyCdkAppStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -13,15 +13,31 @@ export class MyCdkAppStack extends cdk.Stack {
     const websiteBucket = new Bucket(this, 'ShopStaticBucket', {
       bucketName: 'aws-react-rs-school',
       publicReadAccess: false,
-      blockPublicAccess: BlockPublicAccess.BLOCK_ACLS,
+      // websiteIndexDocument: 'index.html',
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
+      autoDeleteObjects: true,
+      blockPublicAccess: BlockPublicAccess.BLOCK_ALL,
     });
 
+    //  create an origin access identity so cloufont can securely read the stuff
+    const oai = new cloudfront.OriginAccessIdentity(this, 'MyOAI');
+    websiteBucket.addToResourcePolicy(
+      new iam.PolicyStatement({
+        actions: ['s3:GetObject'],
+        resources: [websiteBucket.arnForObjects('*')],
+        principals: [
+          new iam.CanonicalUserPrincipal(oai.cloudFrontOriginAccessIdentityS3CanonicalUserId),
+        ],
+      }),
+    );
+
     //  create a cloudfront distribution
-    const distribution = new Distribution(this, 'SiteDistribution', {
+    const distribution = new cloudfront.Distribution(this, 'MyReactAppDistribution', {
       defaultBehavior: {
-        origin: new S3Origin(websiteBucket),
-        viewerProtocolPolicy: ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
+        origin: new origins.S3Origin(websiteBucket, { originAccessIdentity: oai }),
+        viewerProtocolPolicy: cloudfront.ViewerProtocolPolicy.REDIRECT_TO_HTTPS,
       },
+      defaultRootObject: 'index.html',
     });
 
     //  create a deployment

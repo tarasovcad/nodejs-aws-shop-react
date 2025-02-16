@@ -10,8 +10,7 @@
     "test": "jest",
     "cdk": "cdk",
     "destroy": "cdk destroy",
-    "cdk-synth": "cdk synth",
-    "cdk-deploy": "cdk deploy"
+    "cdk-synth": "cdk synth"
   },
   "devDependencies": {
     "@types/jest": "^29.5.14",
